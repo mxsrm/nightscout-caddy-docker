@@ -1,0 +1,121 @@
+services:
+  caddy:
+    image: lucaslorentz/caddy-docker-proxy:ci-alpine
+    container_name: caddy
+    restart: always
+    ports:
+      - 80:80
+      - 443:443
+    environment:
+      - CADDY_INGRESS_NETWORKS=caddy
+    networks:
+      - caddy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./caddy-data:/data
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    logging:
+      options:
+        max-size: "4m"
+        max-file: "10"
+
+  app:
+    image: nightscout/cgm-remote-monitor:latest
+    restart: always
+    environment:
+      - MONGO_CONNECTION=mongodb://db:27017/Nightscout
+      - API_SECRET=YOUR_SECRET
+      - BASE_URL=https://YOUR-DOMAIN.TLD
+      - INSECURE_USE_HTTP=true
+      - SECURE_HSTS_HEADER=false
+      - AUTH_DEFAULT_ROLES=denied
+
+      - PUMP_FIELDS=reservoir battery status
+      - DEVICESTATUS_ADVANCED=true
+      - ENABLE=careportal delta direction upbat timeago profile food iob cob cage sage iage bage cors
+
+      - BG_HIGH=150
+      - BG_TARGET_TOP=150
+      - BG_TARGET_BOTTOM=70
+      - BG_LOW=60
+
+      - CUSTOM_TITLE=Nightscout MS
+      - DISPLAY_UNITS=mg/dl
+      - TIME_FORMAT=24
+      - THEME=colorblindfriendly
+      - LANGUAGE=en
+      - BASAL_RENDER=default
+      - SHOW_PLUGINS=delta direction upbat timeago devicestatus profile food iob cob cage sage iage bage basal pump cors openaps careportal
+      - EDIT_MODE=on
+      - SCALE_Y=linear
+      - OPENAPS_COLOR_PREDICTION_LINES=true
+      - SHOW_FORECAST=openaps
+      - DBSIZE_MAX=5120
+
+      - ALARM_URGENT_HIGH=off
+      - ALARM_HIGH=off
+      - ALARM_URGENT_LOW=off
+      - ALARM_LOW=off
+      - ALARM_TIMEAGO_WARN=off
+      - ALARM_TIMEAGO_URGENT=off
+
+      - CAGE_INFO=36
+      - CAGE_WARN=48
+      - CAGE_URGENT=72
+      - CAGE_DISPLAY=days
+
+      - IAGE_INFO=36
+      - IAGE_WARN=72
+      - IAGE_URGENT=96
+
+      - BAGE_INFO=432
+      - BAGE_WARN=600
+      - BAGE_URGENT=720
+
+      - SAGE_INFO=192
+      - SAGE_WARN=216
+      - SAGE_URGENT=236
+
+    depends_on:
+      db:
+        condition: service_started
+
+    networks:
+      - internal
+      - caddy
+
+    labels:
+      - caddy="YOUR-DOMAIN.TLD"
+      - caddy.reverse_proxy="{{upstreams 1337}}"
+      - caddy.header.Permissions-Policy="interest-cohort=()"
+      - caddy.header.Strict-Transport-Security="max-age=31536000"
+      - caddy.header.X-Content-Type-Options="nosniff"
+      - caddy.header.X-Frame-Options="SAMEORIGIN"
+      - caddy.header.Referrer-Policy="no-referrer-when-downgrade"
+
+  db:
+    image: mongo:5.0
+    restart: always
+    command: --wiredTigerCacheSizeGB 0.5
+    volumes:
+      - ./mongo-data:/data/db
+    networks:
+      - internal
+    labels:
+      com.centurylinklabs.watchtower.enable: true
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    network_mode: none
+    restart: always
+    environment:
+      - WATCHTOWER_POLL_INTERVAL=7200
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+networks:
+  internal:
+  caddy:
+    external: true
