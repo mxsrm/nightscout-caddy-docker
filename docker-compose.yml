@@ -40,7 +40,7 @@ services:
       - BG_TARGET_BOTTOM=70
       - BG_LOW=60
 
-      - CUSTOM_TITLE=Nightscout MS
+      - CUSTOM_TITLE=Nightscout
       - DISPLAY_UNITS=mg/dl
       - TIME_FORMAT=24
       - THEME=colorblindfriendly
